@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prescription-analyzer
+  namespace: prescription-system
+  labels:
+    app: prescription-analyzer
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: prescription-analyzer
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: prescription-analyzer
+    spec:
+      containers:
+      - name: prescription-analyzer
+        image: gcr.io/[PROJECT_ID]/prescription-analyzer:latest
+        imagePullPolicy: Always
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+            memory: "4Gi"
+            cpu: "2"
+          requests:
+            memory: "2Gi"
+            cpu: "1"
+        env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: "/secrets/gcp-credentials/credentials.json"
+        - name: OPENFDA_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-keys
+              key: openfda-key
+        - name: INPUT_BUCKET
+          valueFrom:
+            configMapKeyRef:
+              name: storage-config
+              key: input-bucket
+        - name: OUTPUT_BUCKET
+          valueFrom:
+            configMapKeyRef:
+              name: storage-config
+              key: output-bucket
+        volumeMounts:
+        - name: gcp-credentials
+          mountPath: "/secrets/gcp-credentials"
+          readOnly: true
+        - name: processing-volume
+          mountPath: "/app/gcp_processing"
+        ports:
+        - containerPort: 8080
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: gcp-credentials
+        secret:
+          secretName: gcp-credentials
+      - name: processing-volume
+        emptyDir: {}

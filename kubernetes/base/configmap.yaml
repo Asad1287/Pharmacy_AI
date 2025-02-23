@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: storage-config
+  namespace: prescription-system
+data:
+  input-bucket: "prescription-images"
+  output-bucket: "prescription-results"
+  batch-size: "5"
+  max-workers: "3"
+  logging-level: "INFO"
